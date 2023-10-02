@@ -30,6 +30,10 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 import static meteordevelopment.meteorclient.MeteorClient.mc;
 import static meteordevelopment.meteorclient.utils.Utils.WHITE;
@@ -42,7 +46,9 @@ public class ImageHUD extends HudElement {
     private int ticks = 0;
     private Source source;
 
-    private static final Identifier TEXID = new Identifier("e621", "tex");
+    private Identifier TEXID = new Identifier("e621", UUID.randomUUID().toString().toLowerCase()); //uhoh
+
+    private static final Map<String,BufferedImage> loadedImages = new HashMap<>(); //this WILL leak memory if you construct this multiple times but i dont care
 
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
 
@@ -50,7 +56,7 @@ public class ImageHUD extends HudElement {
         .name("width")
         .description("The max width of the image.")
         .defaultValue(128)
-        .sliderRange(64, 3840)
+        .sliderRange(64, 2048)
         .onChanged(o -> updateSize())
         .build()
     );
@@ -59,7 +65,7 @@ public class ImageHUD extends HudElement {
         .name("height")
         .description("The max height of the image.")
         .defaultValue(128)
-        .sliderRange(64, 2160)
+        .sliderRange(64, 2048)
         .onChanged(o -> updateSize())
         .build()
     );
@@ -67,7 +73,7 @@ public class ImageHUD extends HudElement {
     private final Setting<String> tags = sgGeneral.add(new StringSetting.Builder()
         .name("tags")
         .description("Tags")
-        .defaultValue("femboy")
+        .defaultValue("blue_archive")
         .onChanged((v) -> updateSource())
         .build()
     );
@@ -82,8 +88,8 @@ public class ImageHUD extends HudElement {
 
     private final Setting<SourceType> sourceType = sgGeneral.add(new EnumSetting.Builder<SourceType>()
         .name("source")
-        .description("Source Type.\nSyntax for kemono filter: patreon/user/3161935\n Syntax for mwm: [ycy|moez|ysz|pc|moe|fj|bd|ys|mp|moemp|ysmp|tx|lai|xhl]")
-        .defaultValue(SourceType.e621)
+        .description("Source Type. None disables loading sources for this instance.\nSyntax for kemono filter: patreon/user/3161935\n Syntax for mwm: [ycy|moez|ysz|pc|moe|fj|bd|ys|mp|moemp|ysmp|tx|lai|xhl]")
+        .defaultValue(SourceType.safebooru)
         .onChanged(v -> updateSource())
         .build()
     );
@@ -93,6 +99,20 @@ public class ImageHUD extends HudElement {
         .description("How often to change (ticks).")
         .defaultValue(1200)
         .sliderRange(20, 3000)
+        .build()
+    );
+    private final Setting<String> writeImageIdentifier = sgGeneral.add(new StringSetting.Builder()
+        .name("write-identifier")
+        .description("The id of the downloaded image")
+        .defaultValue("image1")
+        .onChanged(v -> updateImageIdentifiers())
+        .build()
+    );
+    private final Setting<String> readImageIdentifier = sgGeneral.add(new StringSetting.Builder()
+        .name("read-identifier")
+        .description("The id of the displayed image")
+        .defaultValue("image1")
+        .onChanged(v -> updateImageIdentifiers())
         .build()
     );
 
@@ -154,13 +174,24 @@ public class ImageHUD extends HudElement {
 
     private void updateSource() {
         source = Source.getSource(sourceType.get());
-        source.reset();
+        if(source!=null) {
+            source.reset();
+        }
         empty = true;
+    }
+
+    private void updateImageIdentifiers(){
+        uploadAndResizeImage(loadedImages.get(readImageIdentifier.get()));
     }
     private double native_width=64;
     private double native_height=64;
 
     private void loadImage() {
+        if(sourceType.get()==SourceType.none){
+            uploadAndResizeImage(loadedImages.get(readImageIdentifier.get()));
+            empty = false;
+            return;
+        }
         if (locked || source == null)
             return;
         new Thread(() -> {
@@ -172,29 +203,9 @@ public class ImageHUD extends HudElement {
                     return;
                 }
                 E621Hud.LOG.info(url);
-//                var img = NativeImage.read();
                 BufferedImage bufferedImage = ImageIO.read(Http.get(url).sendInputStream());
-                BufferedImage resizedImage = new BufferedImage(
-                    (int) Math.min(maxWidth.get(),bufferedImage.getWidth()*(maxHeight.get()/bufferedImage.getHeight())),
-                    (int) Math.min(maxHeight.get(),bufferedImage.getHeight()*(maxWidth.get()/bufferedImage.getWidth())),
-                    ((bufferedImage.getType() == 0) ? BufferedImage.TYPE_INT_ARGB : bufferedImage.getType())
-                );
-                native_width=resizedImage.getWidth();
-                native_height=resizedImage.getHeight();
-                Graphics2D g2d = resizedImage.createGraphics(); //TODO figure out how to downsize the image without making it look bad
-                g2d.setComposite(AlphaComposite.Src);
-                g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION,RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-                g2d.setRenderingHint(RenderingHints.KEY_RENDERING,RenderingHints.VALUE_RENDER_QUALITY);
-                g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING,RenderingHints.VALUE_COLOR_RENDER_QUALITY);
-                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING,RenderingHints.VALUE_ANTIALIAS_ON);
-                g2d.drawImage(bufferedImage, 0, 0, resizedImage.getWidth(), resizedImage.getHeight(), null);
-                g2d.dispose();
-
-
-
-                ByteArrayOutputStream os = new ByteArrayOutputStream();
-                ImageIO.write(resizedImage,"png", os); //i think this works?
-                mc.getTextureManager().registerTexture(TEXID, new NativeImageBackedTexture(NativeImage.read(new ByteArrayInputStream(os.toByteArray()))));
+                loadedImages.put(writeImageIdentifier.get(), bufferedImage);
+                uploadAndResizeImage(bufferedImage);
                 empty = false;
             } catch (Exception ex) {
                 E621Hud.LOG.error("Failed to render the image.", ex);
@@ -207,5 +218,34 @@ public class ImageHUD extends HudElement {
             locked = false;
         }).start();
         updateSize();
+    }
+
+    private void uploadAndResizeImage(BufferedImage bufferedImage){
+        if(bufferedImage==null) return;
+        try {
+            BufferedImage resizedImage = new BufferedImage(
+                (int) Math.min(maxWidth.get(),bufferedImage.getWidth()*(maxHeight.get()/bufferedImage.getHeight())),
+                (int) Math.min(maxHeight.get(),bufferedImage.getHeight()*(maxWidth.get()/bufferedImage.getWidth())),
+                ((bufferedImage.getType() == 0) ? BufferedImage.TYPE_INT_ARGB : bufferedImage.getType())
+            );
+            native_width=resizedImage.getWidth();
+            native_height=resizedImage.getHeight();
+            Graphics2D g2d = resizedImage.createGraphics(); //TODO figure out how to downsize the image without making it look bad
+            g2d.setComposite(AlphaComposite.Src);
+            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION,RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g2d.setRenderingHint(RenderingHints.KEY_RENDERING,RenderingHints.VALUE_RENDER_QUALITY);
+            g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING,RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING,RenderingHints.VALUE_ANTIALIAS_ON);
+            g2d.drawImage(bufferedImage, 0, 0, resizedImage.getWidth(), resizedImage.getHeight(), null);
+            g2d.dispose();
+
+
+
+            ByteArrayOutputStream os = new ByteArrayOutputStream();
+            ImageIO.write(resizedImage,"png", os); //i think this works?
+            mc.getTextureManager().registerTexture(TEXID, new NativeImageBackedTexture(NativeImage.read(new ByteArrayInputStream(os.toByteArray()))));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

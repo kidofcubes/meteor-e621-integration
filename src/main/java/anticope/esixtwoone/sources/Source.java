@@ -22,7 +22,9 @@ public abstract class Source {
         danbooru,
         mwm,
         kemono,
-        safebooru
+        safebooru,
+
+        none
     }
 
     protected final Random random = new Random();
