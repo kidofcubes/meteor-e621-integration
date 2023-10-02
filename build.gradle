@@ -18,6 +18,9 @@ repositories {
         url = "https://maven.meteordev.org/snapshots"
     }
 }
+configurations {
+    includeImplementation.extendsFrom implementation
+}
 
 dependencies {
     // Fabric
@@ -27,6 +30,10 @@ dependencies {
 
     // Meteor
     modImplementation "meteordevelopment:meteor-client:${project.meteor_version}"
+
+    // Web scraping
+    implementation 'org.jsoup:jsoup:1.16.1'
+    includeImplementation 'org.jsoup:jsoup:1.16.1'
 }
 
 processResources {
@@ -40,4 +47,11 @@ processResources {
 
 tasks.withType(JavaCompile).configureEach {
     it.options.encoding("UTF-8")
+}
+
+jar {
+    from {
+        configurations.includeImplementation
+        .collect { it.isDirectory() ? it : zipTree(it) }
+    }
 }

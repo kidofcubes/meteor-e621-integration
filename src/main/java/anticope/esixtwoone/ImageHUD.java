@@ -82,7 +82,7 @@ public class ImageHUD extends HudElement {
 
     private final Setting<SourceType> sourceType = sgGeneral.add(new EnumSetting.Builder<SourceType>()
         .name("source")
-        .description("Source Type.")
+        .description("Source Type.\nSyntax for kemono filter: patreon/user/3161935\n Syntax for mwm: [ycy|moez|ysz|pc|moe|fj|bd|ys|mp|moemp|ysmp|tx|lai|xhl]")
         .defaultValue(SourceType.e621)
         .onChanged(v -> updateSource())
         .build()

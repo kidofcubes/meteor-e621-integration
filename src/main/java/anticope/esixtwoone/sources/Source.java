@@ -21,6 +21,7 @@ public abstract class Source {
         nekoslife,
         danbooru,
         mwm,
+        kemono,
     }
 
     protected final Random random = new Random();
@@ -46,6 +47,7 @@ public abstract class Source {
             case nekoslife -> new NekosLife("https://nekos.life");
             case danbooru -> new Danbooru("https://testbooru.donmai.us");
             case mwm -> new Mwm("https://t.mwm.moe", List.of("ycy","moez","ai","ysz","pc","moe","fj","bd","ys","mp","moemp","ysmp","tx","lai","xhl"));
+            case kemono -> new Kemono();
             default -> null;
         };
     }
