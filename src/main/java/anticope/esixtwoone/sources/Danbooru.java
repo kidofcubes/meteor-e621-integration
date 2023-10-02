@@ -21,7 +21,7 @@ public class Danbooru extends Source{
     public void reset() {}
 
     private final List<String> acceptedExtensions = List.of("jpg","png","gif","webm"); //i think it should "just work" with gifs?
-    @Override //https://testbooru.donmai.us/posts.json?random=true&limit=1&tags=blue_archive+-rating%3Aexplicit
+    @Override //https://danbooru.donmai.us/posts.json?random=true&limit=1&tags=blue_archive+-rating%3Aexplicit
     protected String randomImage(String filter, Size size) {
         String query = String.format("%s/posts.json?limit=5&tags=%s+random%%3A1", domain, filter);
         System.out.println("we are querying "+query);

@@ -26,14 +26,22 @@ public class GelBooru extends Source {
         if (result == null) return null;
         if (result instanceof JsonArray array) {
             if (array.get(random.nextInt(0, Math.min(11, array.size()))) instanceof JsonObject post) {
-                var url = post.get(size.toString()+"_url").getAsString();
-                return url;
+                if(post.get(size.toString()+"_url")!=null) {
+                    var url = post.get(size.toString() + "_url").getAsString();
+                    return url;
+                }else{
+                    return String.format("%s//images/%s/%s",domain,post.get("directory").getAsString(),post.get("image").getAsString());
+                }
             }
         } else if (result instanceof JsonObject object) {
             if (object.get("post") instanceof JsonArray array) {
                 if (array.get(random.nextInt(0, Math.min(11, array.size()))) instanceof JsonObject post) {
-                    var url = post.get(size.toString()+"_url").getAsString();
-                    return url;
+                    if(post.get(size.toString()+"_url")!=null) {
+                        var url = post.get(size.toString()+"_url").getAsString();
+                        return url;
+                    }else{
+                        return String.format("%s//images/%s/%s",domain,post.get("directory").getAsString(),post.get("image").getAsString());
+                    }
                 }
             }
         }

@@ -131,10 +131,19 @@ public class ImageHUD extends HudElement {
         GL.bindTexture(TEXID);
         Renderer2D.TEXTURE.begin();
 
-
-        Renderer2D.TEXTURE.texQuad(x, y,
-            (int)Math.min(maxWidth.get(),native_width*(maxHeight.get()/native_height)),
-            (int)Math.min(maxHeight.get(),native_height*(maxWidth.get()/native_width)),
+        Renderer2D.TEXTURE.texQuad(
+            switch(box.xAnchor){
+                case Left -> x;
+                case Center -> x+(maxWidth.get()/2)-(native_width/2);
+                case Right -> x+maxWidth.get()-(native_width);
+            },
+            switch(box.yAnchor){
+                case Top -> y;
+                case Center -> y+(maxHeight.get()/2)-(native_height/2);
+                case Bottom -> y+maxHeight.get()-(native_height);
+            },
+            (int)native_width,
+            (int)native_height,
             WHITE);
         Renderer2D.TEXTURE.render(null);
     }
@@ -165,16 +174,16 @@ public class ImageHUD extends HudElement {
                 E621Hud.LOG.info(url);
 //                var img = NativeImage.read();
                 BufferedImage bufferedImage = ImageIO.read(Http.get(url).sendInputStream());
-                native_width=bufferedImage.getWidth();
-                native_height=bufferedImage.getHeight();
                 BufferedImage resizedImage = new BufferedImage(
-                    (int) Math.min(maxWidth.get(),native_width*(maxHeight.get()/native_height)),
-                    (int) Math.min(maxHeight.get(),native_height*(maxWidth.get()/native_width)),
+                    (int) Math.min(maxWidth.get(),bufferedImage.getWidth()*(maxHeight.get()/bufferedImage.getHeight())),
+                    (int) Math.min(maxHeight.get(),bufferedImage.getHeight()*(maxWidth.get()/bufferedImage.getWidth())),
                     ((bufferedImage.getType() == 0) ? BufferedImage.TYPE_INT_ARGB : bufferedImage.getType())
                 );
-                Graphics2D g2d = resizedImage.createGraphics();
+                native_width=resizedImage.getWidth();
+                native_height=resizedImage.getHeight();
+                Graphics2D g2d = resizedImage.createGraphics(); //TODO figure out how to downsize the image without making it look bad
                 g2d.setComposite(AlphaComposite.Src);
-                g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION,RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+                g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION,RenderingHints.VALUE_INTERPOLATION_BILINEAR);
                 g2d.setRenderingHint(RenderingHints.KEY_RENDERING,RenderingHints.VALUE_RENDER_QUALITY);
                 g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING,RenderingHints.VALUE_COLOR_RENDER_QUALITY);
                 g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING,RenderingHints.VALUE_ANTIALIAS_ON);

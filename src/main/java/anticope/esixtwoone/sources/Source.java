@@ -22,6 +22,7 @@ public abstract class Source {
         danbooru,
         mwm,
         kemono,
+        safebooru
     }
 
     protected final Random random = new Random();
@@ -45,9 +46,10 @@ public abstract class Source {
             case gelbooru -> new GelBooru("https://gelbooru.com/", 700);
             case rule34 -> new GelBooru("https://api.rule34.xxx/", 700);
             case nekoslife -> new NekosLife("https://nekos.life");
-            case danbooru -> new Danbooru("https://testbooru.donmai.us");
+            case danbooru -> new Danbooru("https://danbooru.donmai.us");
             case mwm -> new Mwm("https://t.mwm.moe", List.of("ycy","moez","ai","ysz","pc","moe","fj","bd","ys","mp","moemp","ysmp","tx","lai","xhl"));
             case kemono -> new Kemono();
+            case safebooru -> new GelBooru("https://safebooru.org/",700);
             default -> null;
         };
     }
