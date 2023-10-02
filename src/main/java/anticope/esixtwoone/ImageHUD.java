@@ -25,6 +25,12 @@ import anticope.esixtwoone.sources.Source;
 import anticope.esixtwoone.sources.Source.Size;
 import anticope.esixtwoone.sources.Source.SourceType;
 
+import javax.imageio.ImageIO;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+
 import static meteordevelopment.meteorclient.MeteorClient.mc;
 import static meteordevelopment.meteorclient.utils.Utils.WHITE;
 
@@ -40,22 +46,20 @@ public class ImageHUD extends HudElement {
 
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
 
-    private final Setting<Double> imgWidth = sgGeneral.add(new DoubleSetting.Builder()
+    private final Setting<Double> maxWidth = sgGeneral.add(new DoubleSetting.Builder()
         .name("width")
-        .description("The scale of the image.")
-        .defaultValue(100)
-        .min(10)
-        .sliderRange(70, 1000)
+        .description("The max width of the image.")
+        .defaultValue(128)
+        .sliderRange(64, 3840)
         .onChanged(o -> updateSize())
         .build()
     );
 
-    private final Setting<Double> imgHeight = sgGeneral.add(new DoubleSetting.Builder()
+    private final Setting<Double> maxHeight = sgGeneral.add(new DoubleSetting.Builder()
         .name("height")
-        .description("The scale of the image.")
-        .defaultValue(100)
-        .min(10)
-        .sliderRange(70, 1000)
+        .description("The max height of the image.")
+        .defaultValue(128)
+        .sliderRange(64, 2160)
         .onChanged(o -> updateSize())
         .build()
     );
@@ -88,8 +92,6 @@ public class ImageHUD extends HudElement {
         .name("refresh-rate")
         .description("How often to change (ticks).")
         .defaultValue(1200)
-        .max(3000)
-        .min(20)
         .sliderRange(20, 3000)
         .build()
     );
@@ -128,12 +130,17 @@ public class ImageHUD extends HudElement {
 
         GL.bindTexture(TEXID);
         Renderer2D.TEXTURE.begin();
-        Renderer2D.TEXTURE.texQuad(x, y, imgWidth.get(), imgHeight.get(), WHITE);
+
+
+        Renderer2D.TEXTURE.texQuad(x, y,
+            (int)Math.min(maxWidth.get(),native_width*(maxHeight.get()/native_height)),
+            (int)Math.min(maxHeight.get(),native_height*(maxWidth.get()/native_width)),
+            WHITE);
         Renderer2D.TEXTURE.render(null);
     }
 
     private void updateSize() {
-        setSize(imgWidth.get(), imgHeight.get());
+        setSize(maxWidth.get(),maxHeight.get());
     }
 
     private void updateSource() {
@@ -141,6 +148,8 @@ public class ImageHUD extends HudElement {
         source.reset();
         empty = true;
     }
+    private double native_width=64;
+    private double native_height=64;
 
     private void loadImage() {
         if (locked || source == null)
@@ -154,11 +163,37 @@ public class ImageHUD extends HudElement {
                     return;
                 }
                 E621Hud.LOG.info(url);
-                var img = NativeImage.read(Http.get(url).sendInputStream());
-                mc.getTextureManager().registerTexture(TEXID, new NativeImageBackedTexture(img));
+//                var img = NativeImage.read();
+                BufferedImage bufferedImage = ImageIO.read(Http.get(url).sendInputStream());
+                native_width=bufferedImage.getWidth();
+                native_height=bufferedImage.getHeight();
+                BufferedImage resizedImage = new BufferedImage(
+                    (int) Math.min(maxWidth.get(),native_width*(maxHeight.get()/native_height)),
+                    (int) Math.min(maxHeight.get(),native_height*(maxWidth.get()/native_width)),
+                    ((bufferedImage.getType() == 0) ? BufferedImage.TYPE_INT_ARGB : bufferedImage.getType())
+                );
+                Graphics2D g2d = resizedImage.createGraphics();
+                g2d.setComposite(AlphaComposite.Src);
+                g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION,RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+                g2d.setRenderingHint(RenderingHints.KEY_RENDERING,RenderingHints.VALUE_RENDER_QUALITY);
+                g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING,RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING,RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.drawImage(bufferedImage, 0, 0, resizedImage.getWidth(), resizedImage.getHeight(), null);
+                g2d.dispose();
+
+
+
+                ByteArrayOutputStream os = new ByteArrayOutputStream();
+                ImageIO.write(resizedImage,"png", os); //i think this works?
+                mc.getTextureManager().registerTexture(TEXID, new NativeImageBackedTexture(NativeImage.read(new ByteArrayInputStream(os.toByteArray()))));
                 empty = false;
             } catch (Exception ex) {
                 E621Hud.LOG.error("Failed to render the image.", ex);
+            }
+            try {
+                Thread.sleep(2000); //dont spam
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
             }
             locked = false;
         }).start();

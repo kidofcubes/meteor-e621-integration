@@ -2,6 +2,7 @@ package anticope.esixtwoone.sources;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Random;
 
 import anticope.esixtwoone.E621Hud;
@@ -17,7 +18,9 @@ public abstract class Source {
         e621,
         gelbooru,
         rule34,
-        nekoslife
+        nekoslife,
+        danbooru,
+        mwm,
     }
 
     protected final Random random = new Random();
@@ -41,6 +44,8 @@ public abstract class Source {
             case gelbooru -> new GelBooru("https://gelbooru.com/", 700);
             case rule34 -> new GelBooru("https://api.rule34.xxx/", 700);
             case nekoslife -> new NekosLife("https://nekos.life");
+            case danbooru -> new Danbooru("https://testbooru.donmai.us");
+            case mwm -> new Mwm("https://t.mwm.moe", List.of("ycy","moez","ai","ysz","pc","moe","fj","bd","ys","mp","moemp","ysmp","tx","lai","xhl"));
             default -> null;
         };
     }
